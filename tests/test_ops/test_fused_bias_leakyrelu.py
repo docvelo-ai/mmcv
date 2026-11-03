@@ -57,11 +57,13 @@ class TestFusedBiasLeakyReLU:
                     delta=1e-4,
                     pt_atol=1e-3)
         else:
+            # float32 finite differences with eps=1e-4 amplify the rounding
+            # error of this op, so keep a slightly looser atol.
             gradcheck(
                 FusedBiasLeakyReLU(2).to(device),
                 self.input_tensor,
                 eps=1e-4,
-                atol=1e-3)
+                atol=5e-3)
 
     @pytest.mark.parametrize('device', [
         pytest.param(

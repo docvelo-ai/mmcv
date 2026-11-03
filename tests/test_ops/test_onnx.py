@@ -79,7 +79,8 @@ def test_roialign():
                 export_params=True,
                 keep_initializers_as_inputs=True,
                 input_names=['input', 'rois'],
-                opset_version=11)
+                opset_version=11,
+                dynamo=False)
 
         onnx_model = onnx.load(onnx_file)
         session_options = rt.SessionOptions()
@@ -145,7 +146,8 @@ def test_roipool():
                 export_params=True,
                 keep_initializers_as_inputs=True,
                 input_names=['input', 'rois'],
-                opset_version=11)
+                opset_version=11,
+                dynamo=False)
         onnx_model = onnx.load(onnx_file)
 
         # compute onnx_output
@@ -170,7 +172,8 @@ def test_roipool():
 
 def _test_symbolic(model, inputs, symbol_name):
     with torch.no_grad():
-        torch.onnx.export(model, inputs, onnx_file, opset_version=11)
+        torch.onnx.export(
+            model, inputs, onnx_file, opset_version=11, dynamo=False)
 
     import onnx
     model = onnx.load(onnx_file)

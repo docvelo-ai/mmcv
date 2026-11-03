@@ -113,7 +113,13 @@ def test_grouping_points(dtype, device):
           ]]],
         dtype=dtype).to(device)
     assert torch.allclose(output, expected_output)
-    assert torch.allclose(grad_features, expected_grad_features)
+    if dtype == torch.half:
+        # grad_features is accumulated with atomicAdd, whose order-dependent
+        # half precision rounding differs between GPU architectures.
+        assert torch.allclose(
+            grad_features, expected_grad_features, rtol=1e-2, atol=1e-2)
+    else:
+        assert torch.allclose(grad_features, expected_grad_features)
 
 
 @pytest.mark.parametrize('device', [
