@@ -276,7 +276,7 @@ mmcv 有两个版本：
 如果上述命令没有报错，说明安装成功。如有报错，请查看[问题解决页面](../faq.md)是否已经有解决方案。
 如果没有找到解决方案，欢迎提 [issue](https://github.com/open-mmlab/mmcv/issues)。
 
-### 编译 mmcv-lite
+### 编译不含算子的版本
 
 如果你需要使用和 PyTorch 相关的模块，请确保 PyTorch 已经成功安装在环境中，可以参考 [PyTorch 官方安装文档](https://pytorch.org/get-started/locally/#start-locally)。
 

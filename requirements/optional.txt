@@ -1,2 +1,2 @@
-ninja
-psutil
+ninja>=1.11.1
+psutil>=6.0.0

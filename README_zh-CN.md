@@ -85,16 +85,22 @@ MMCV 支持多种平台，包括：
 
 如想了解更多特性和使用，请参考[文档](http://mmcv.readthedocs.io/zh_CN/latest)。
 
-提示: MMCV 需要 Python 3.7 以上版本。
+提示: MMCV 需要 Python 3.12-3.15 以及 PyTorch 2.10 以上版本。
 
 ## 安装
 
-MMCV 有两个版本：
+MMCV 默认包含编译好的 CUDA/CPU 算子。如果只需要纯 Python 部分，可以在从源码构建时设置 `MMCV_WITH_OPS=0`。
 
-- **mmcv**: 完整版，包含所有的特性以及丰富的开箱即用的 CUDA 算子。注意完整版本可能需要更长时间来编译。
-- **mmcv-lite**: 精简版，不包含 CUDA 算子但包含其余所有特性和功能，类似 MMCV 1.0 之前的版本。如果你不需要使用 CUDA 算子的话，精简版可以作为一个考虑选项。
+### 使用 uv 开发
 
-**注意**: 请不要在同一个环境中安装两个版本，否则可能会遇到类似 `ModuleNotFound` 的错误。在安装一个版本之前，需要先卸载另一个。`如果 CUDA 可用，强烈推荐安装 mmcv`。
+本项目使用 [uv](https://docs.astral.sh/uv/) 管理环境，依赖定义在 `pyproject.toml` 中，并锁定在 `uv.lock`：
+
+```bash
+uv sync --group test   # 创建 .venv，安装依赖并编译 mmcv 算子
+uv run pytest tests/
+```
+
+在 `uv sync` 前设置 `MMCV_WITH_OPS=0` 可以只构建不含编译算子的纯 Python 包。
 
 ### 安装 mmcv
 
@@ -134,15 +140,6 @@ Collecting mmcv==2.0.0<br />
 </details>
 
 更多安装方式请参考[安装文档](https://mmcv.readthedocs.io/zh_CN/latest/get_started/installation.html)。
-
-### 安装 mmcv-lite
-
-如果你需要使用和 PyTorch 相关的模块，请确保 PyTorch 已经成功安装在环境中，可以参考 [PyTorch 官方安装文档](https://github.com/pytorch/pytorch#installation)。
-
-```bash
-pip install -U openmim
-mim install mmcv-lite
-```
 
 ## FAQ
 

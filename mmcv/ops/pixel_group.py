@@ -76,7 +76,7 @@ def pixel_group(
             pixel_assignment.append(
                 np.array(
                     label[list_index:list_index + int(label[x])],
-                    dtype=np.float))
+                    dtype=np.float64))
             list_index = list_index + int(label[x])
     else:
         pixel_assignment = ext_module.pixel_group(score, mask, embedding,

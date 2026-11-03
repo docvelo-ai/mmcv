@@ -65,16 +65,22 @@ It supports the following systems:
 
 See the [documentation](http://mmcv.readthedocs.io/en/latest) for more features and usage.
 
-Note: MMCV requires Python 3.7+.
+Note: MMCV requires Python 3.12-3.15 and PyTorch 2.10+.
 
 ## Installation
 
-There are two versions of MMCV:
+MMCV ships the compiled CUDA/CPU ops by default. Set `MMCV_WITH_OPS=0` when building from source if you only need the pure-Python part.
 
-- **mmcv**: comprehensive, with full features and various CUDA ops out of the box. It takes longer time to build.
-- **mmcv-lite**: lite, without CUDA ops but all other features, similar to mmcv\<1.0.0. It is useful when you do not need those CUDA ops.
+### Develop with uv
 
-**Note**: Do not install both versions in the same environment, otherwise you may encounter errors like `ModuleNotFound`. You need to uninstall one before installing the other. `Installing the full version is highly recommended if CUDA is available`.
+The project is managed with [uv](https://docs.astral.sh/uv/). The environment is defined by `pyproject.toml` and locked in `uv.lock`:
+
+```bash
+uv sync --group test   # create .venv, install dependencies and build mmcv ops
+uv run pytest tests/
+```
+
+Set `MMCV_WITH_OPS=0` before `uv sync` to build the pure-Python package without compiled ops.
 
 ### Install mmcv
 
@@ -114,15 +120,6 @@ Collecting mmcv==2.0.0<br />
 </details>
 
 For more installation methods, please refer to the [Installation documentation](https://mmcv.readthedocs.io/en/latest/get_started/installation.html).
-
-### Install mmcv-lite
-
-If you need to use PyTorch-related modules, make sure PyTorch has been successfully installed in your environment by referring to the [PyTorch official installation guide](https://github.com/pytorch/pytorch#installation).
-
-```bash
-pip install -U openmim
-mim install mmcv-lite
-```
 
 ## FAQ
 

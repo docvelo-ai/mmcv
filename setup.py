@@ -2,8 +2,9 @@ import glob
 import os
 import platform
 import re
-from pkg_resources import DistributionNotFound, get_distribution, parse_version
-from setuptools import find_packages, setup
+
+from packaging.version import parse as parse_version
+from setuptools import setup
 
 EXT_TYPE = ''
 try:
@@ -32,116 +33,6 @@ except ModuleNotFoundError:
     print('Skip building ext ops due to the absence of torch.')
 
 
-def choose_requirement(primary, secondary):
-    """If some version of primary requirement installed, return primary, else
-    return secondary."""
-    try:
-        name = re.split(r'[!<>=]', primary)[0]
-        get_distribution(name)
-    except DistributionNotFound:
-        return secondary
-
-    return str(primary)
-
-
-def get_version():
-    version_file = 'mmcv/version.py'
-    with open(version_file, encoding='utf-8') as f:
-        exec(compile(f.read(), version_file, 'exec'))
-    return locals()['__version__']
-
-
-def parse_requirements(fname='requirements/runtime.txt', with_version=True):
-    """Parse the package dependencies listed in a requirements file but strips
-    specific versioning information.
-
-    Args:
-        fname (str): path to requirements file
-        with_version (bool, default=False): if True include version specs
-
-    Returns:
-        List[str]: list of requirements items
-
-    CommandLine:
-        python -c "import setup; print(setup.parse_requirements())"
-    """
-    import sys
-    from os.path import exists
-    require_fpath = fname
-
-    def parse_line(line):
-        """Parse information from a line in a requirements text file."""
-        if line.startswith('-r '):
-            # Allow specifying requirements in other files
-            target = line.split(' ')[1]
-            for info in parse_require_file(target):
-                yield info
-        else:
-            info = {'line': line}
-            if line.startswith('-e '):
-                info['package'] = line.split('#egg=')[1]
-            else:
-                # Remove versioning from the package
-                pat = '(' + '|'.join(['>=', '==', '>']) + ')'
-                parts = re.split(pat, line, maxsplit=1)
-                parts = [p.strip() for p in parts]
-
-                info['package'] = parts[0]
-                if len(parts) > 1:
-                    op, rest = parts[1:]
-                    if ';' in rest:
-                        # Handle platform specific dependencies
-                        # http://setuptools.readthedocs.io/en/latest/setuptools.html#declaring-platform-specific-dependencies
-                        version, platform_deps = map(str.strip,
-                                                     rest.split(';'))
-                        info['platform_deps'] = platform_deps
-                    else:
-                        version = rest  # NOQA
-                    info['version'] = (op, version)
-            yield info
-
-    def parse_require_file(fpath):
-        with open(fpath) as f:
-            for line in f.readlines():
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    yield from parse_line(line)
-
-    def gen_packages_items():
-        if exists(require_fpath):
-            for info in parse_require_file(require_fpath):
-                parts = [info['package']]
-                if with_version and 'version' in info:
-                    parts.extend(info['version'])
-                if not sys.version.startswith('3.4'):
-                    # apparently package_deps are broken in 3.4
-                    platform_deps = info.get('platform_deps')
-                    if platform_deps is not None:
-                        parts.append(';' + platform_deps)
-                item = ''.join(parts)
-                yield item
-
-    packages = list(gen_packages_items())
-    return packages
-
-
-install_requires = parse_requirements()
-
-try:
-    # OpenCV installed via conda.
-    import cv2  # NOQA: F401
-    major, minor, *rest = cv2.__version__.split('.')
-    if int(major) < 3:
-        raise RuntimeError(
-            f'OpenCV >=3 is required but {cv2.__version__} is installed')
-except ImportError:
-    # If first not installed install second package
-    CHOOSE_INSTALL_REQUIRES = [('opencv-python-headless>=3',
-                                'opencv-python>=3')]
-    for main, secondary in CHOOSE_INSTALL_REQUIRES:
-        install_requires.append(choose_requirement(main, secondary))
-
-
 def get_extensions():
     extensions = []
 
@@ -166,8 +57,8 @@ def get_extensions():
         op_files.remove('./mmcv/ops/csrc/pytorch/cuda/bias_act_cuda.cu')
         cuda_args = os.getenv('MMCV_CUDA_ARGS')
         extra_compile_args = {
-            'nvcc': [cuda_args, '-std=c++14'] if cuda_args else ['-std=c++14'],
-            'cxx': ['-std=c++14'],
+            'nvcc': [cuda_args, '-std=c++17'] if cuda_args else ['-std=c++17'],
+            'cxx': ['-std=c++17'],
         }
         if torch.cuda.is_available() or os.getenv('FORCE_CUDA', '0') == '1':
             define_macros += [('MMCV_WITH_CUDA', None)]
@@ -200,24 +91,12 @@ def get_extensions():
         os.environ.setdefault('MAX_JOBS', str(cpu_use))
         define_macros = []
 
-        # Before PyTorch1.8.0, when compiling CUDA code, `cxx` is a
-        # required key passed to PyTorch. Even if there is no flag passed
-        # to cxx, users also need to pass an empty list to PyTorch.
-        # Since PyTorch1.8.0, it has a default value so users do not need
-        # to pass an empty list anymore.
-        # More details at https://github.com/pytorch/pytorch/pull/45956
-        extra_compile_args = {'cxx': []}
-
+        # PyTorch >= 2.10 requires C++20 for extensions.
         if platform.system() != 'Windows':
-            if parse_version(torch.__version__) <= parse_version('1.12.1'):
-                extra_compile_args['cxx'] = ['-std=c++14']
-            else:
-                extra_compile_args['cxx'] = ['-std=c++17']
+            extra_compile_args = {'cxx': ['-std=c++20']}
         else:
-            if parse_version(torch.__version__) <= parse_version('1.12.1'):
-                extra_compile_args['cxx'] = ['/std:c++14']
-            else:
-                extra_compile_args['cxx'] = ['/std:c++17']
+            # CUDA 13's CCCL headers reject MSVC's traditional preprocessor.
+            extra_compile_args = {'cxx': ['/std:c++20', '/Zc:preprocessor']}
 
         include_dirs = []
         library_dirs = []
@@ -278,8 +157,9 @@ def get_extensions():
             include_dirs.append(os.path.abspath('./mmcv/ops/csrc/common'))
             include_dirs.append(os.path.abspath('./mmcv/ops/csrc/common/cuda'))
             libraries += ['torch_supa', 'torch_supa_op']
-        elif is_rocm_pytorch or torch.cuda.is_available() or os.getenv(
-                'FORCE_CUDA', '0') == '1':
+        elif (is_rocm_pytorch or torch.cuda.is_available()
+              or os.getenv('FORCE_CUDA', '0') == '1') and os.getenv(
+                  'MMCV_WITH_CUDA', '1') == '1':
             if is_rocm_pytorch:
                 define_macros += [('MMCV_WITH_HIP', None)]
             define_macros += [('MMCV_WITH_CUDA', None)]
@@ -395,15 +275,18 @@ def get_extensions():
         elif (hasattr(torch.backends, 'mps')
               and torch.backends.mps.is_available()) or os.getenv(
                   'FORCE_MPS', '0') == '1':
-            # objc compiler support
-            from distutils.unixccompiler import UnixCCompiler
+            # objc compiler support (distutils was removed in Python 3.12)
+            try:
+                from distutils.unixccompiler import UnixCCompiler
+            except ImportError:
+                from setuptools._distutils.unixccompiler import UnixCCompiler
             if '.mm' not in UnixCCompiler.src_extensions:
                 UnixCCompiler.src_extensions.append('.mm')
                 UnixCCompiler.language_map['.mm'] = 'objc'
 
             define_macros += [('MMCV_WITH_MPS', None)]
             extra_compile_args = {}
-            extra_compile_args['cxx'] = ['-Wall', '-std=c++17']
+            extra_compile_args['cxx'] = ['-Wall', '-std=c++20']
             extra_compile_args['cxx'] += [
                 '-framework', 'Metal', '-framework', 'Foundation'
             ]
@@ -473,18 +356,14 @@ def get_extensions():
             extension = CppExtension
             include_dirs.append(os.path.abspath('./mmcv/ops/csrc/common'))
 
-        # Since the PR (https://github.com/open-mmlab/mmcv/pull/1463) uses
-        # c++14 features, the argument ['std=c++14'] must be added here.
-        # However, in the windows environment, some standard libraries
-        # will depend on c++17 or higher. In fact, for the windows
-        # environment, the compiler will choose the appropriate compiler
-        # to compile those cpp files, so there is no need to add the
-        # argument
-        if 'nvcc' in extra_compile_args and platform.system() != 'Windows':
-            if parse_version(torch.__version__) <= parse_version('1.12.1'):
-                extra_compile_args['nvcc'] += ['-std=c++14']
+        # PyTorch >= 2.10 requires CUDA sources to be compiled as C++20.
+        if 'nvcc' in extra_compile_args:
+            if platform.system() != 'Windows':
+                extra_compile_args['nvcc'] += ['-std=c++20']
             else:
-                extra_compile_args['nvcc'] += ['-std=c++17']
+                extra_compile_args['nvcc'] += [
+                    '-Xcompiler', '/Zc:preprocessor'
+                ]
 
         ext_ops = extension(
             name=ext_name,
@@ -500,35 +379,9 @@ def get_extensions():
     return extensions
 
 
+# Metadata (name, version, dependencies, python_requires) lives in
+# pyproject.toml; setup.py only describes the C++ extension build.
 setup(
-    name='mmcv' if os.getenv('MMCV_WITH_OPS', '1') == '1' else 'mmcv-lite',
-    version=get_version(),
-    description='OpenMMLab Computer Vision Foundation',
-    keywords='computer vision',
-    packages=find_packages(),
-    include_package_data=True,
-    classifiers=[
-        'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: Apache Software License',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Topic :: Utilities',
-    ],
-    url='https://github.com/open-mmlab/mmcv',
-    author='MMCV Contributors',
-    author_email='openmmlab@gmail.com',
-    install_requires=install_requires,
-    extras_require={
-        'all': parse_requirements('requirements.txt'),
-        'tests': parse_requirements('requirements/test.txt'),
-        'build': parse_requirements('requirements/build.txt'),
-        'optional': parse_requirements('requirements/optional.txt'),
-    },
-    python_requires='>=3.7',
     ext_modules=get_extensions(),
     cmdclass=cmd_class,
     zip_safe=False)

@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=77", "wheel>=0.44"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mmcv"
+dynamic = ["version"]
+description = "OpenMMLab Computer Vision Foundation"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "LICENSES.md"]
+authors = [{ name = "MMCV Contributors", email = "openmmlab@gmail.com" }]
+keywords = ["computer vision"]
+requires-python = ">=3.12,<3.16"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "addict>=2.4.0",
+    "mmengine>=0.10.7",
+    "numpy>=2.0",
+    "opencv-python>=4.10.0",
+    "packaging>=24.0",
+    "Pillow>=10.4.0",
+    "pyyaml>=6.0.2",
+    "regex>=2024.11.6; sys_platform == 'win32'",
+    "torch>=2.10",
+    "yapf>=0.43.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/open-mmlab/mmcv"
+Repository = "https://github.com/docvelo-ai/mmcv"
+
+[dependency-groups]
+dev = [
+    "ninja>=1.11.1",
+    "psutil>=6.0.0",
+    "setuptools>=77",
+    "wheel>=0.44",
+]
+test = [
+    "coverage>=7.6.0",
+    "lmdb>=1.5.1",
+    "onnx>=1.17.0",
+    "onnxruntime>=1.20.0",
+    "PyTurboJPEG>=1.7.2",
+    "pytest>=8.3.0",
+    "scipy>=1.14.0",
+    "tifffile>=2024.8.30",
+    "torchvision>=0.25",
+]
+docs = [
+    "docutils>=0.20",
+    "markdown>=3.7",
+    "myst-parser>=4.0",
+    "opencv-python>=4.10.0",
+    "pytorch-sphinx-theme>=0.0.19",
+    "sphinx>=8.1,<9",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-markdown-tables>=0.0.17",
+]
+
+[tool.uv]
+# setup.py imports torch to build the C++ extension, so the build has to see
+# the project environment instead of an isolated one.
+no-build-isolation = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform != 'darwin'" }]
+torchvision = [{ index = "pytorch-cu130", marker = "sys_platform != 'darwin'" }]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "mmcv.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["mmcv*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -7,40 +7,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-n-publish_without_ops:
+  build-n-publish:
     runs-on: ubuntu-22.04
     if: startsWith(github.event.ref, 'refs/tags')
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v1
+      - uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: 3.7
-      - name: Upgrade Setuptools
-        run: pip install setuptools wheel --upgrade
-      - name: Build MMCV
-        run: |
-          sed -i "s/os.getenv('MMCV_WITH_OPS', '1')/os.getenv('MMCV_WITH_OPS', '0')/g" setup.py
-          python setup.py sdist bdist_wheel
+          python-version: '3.12'
+          enable-cache: true
+      - name: Install build dependencies
+        run: uv sync --group dev
+      - name: Build MMCV (sdist + wheel)
+        run: uv build --no-build-isolation
       - name: Publish distribution to PyPI
         run: |
-          pip install twine
-          twine upload dist/* -u __token__ -p ${{ secrets.pypi_password }}
-
-  build-n-publish_with_ops:
-    runs-on: ubuntu-22.04
-    if: startsWith(github.event.ref, 'refs/tags')
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.7
-      - name: Upgrade Setuptools
-        run: pip install setuptools --upgrade
-      - name: Build MMCV with ops
-        run: python setup.py sdist
-      - name: Publish distribution to PyPI
-        run: |
-          pip install twine
-          twine upload dist/* -u __token__ -p ${{ secrets.pypi_password }}
+          uv tool run twine upload dist/* -u __token__ -p ${{ secrets.pypi_password }}
